@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -37,10 +38,23 @@ import {
     ChevronLeft,
     ChevronRight,
     ArrowUpDown,
+    Loader2,
 } from "lucide-react"
 import { formatDate, getMemberStatus, generateWhatsAppLink } from "@/lib/utils"
+import { sendBulkMessage } from "@/actions/notification"
 import { toast } from "sonner"
 import Link from "next/link"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function MembersPage() {
     const { data: session } = useSession()
@@ -61,6 +75,13 @@ export default function MembersPage() {
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [deleteId, setDeleteId] = useState<string | null>(null)
     const [deleting, setDeleting] = useState(false)
+
+    // Bulk Message State
+    const [bulkDialogOpen, setBulkDialogOpen] = useState(false)
+    const [bulkType, setBulkType] = useState<"email" | "whatsapp">("whatsapp")
+    const [bulkMessage, setBulkMessage] = useState("")
+    const [bulkSubject, setBulkSubject] = useState("Important update from your Gym")
+    const [sendingBulk, setSendingBulk] = useState(false)
 
     const debouncedSearch = useDebounce(search, 300)
 
@@ -90,8 +111,12 @@ export default function MembersPage() {
         if (result.success) setPlans(result.data || [])
     }, [gymId])
 
-    useEffect(() => { fetchPlans() }, [fetchPlans])
-    useEffect(() => { fetchMembers() }, [fetchMembers])
+    useEffect(() => {
+        fetchPlans()
+    }, [fetchPlans])
+    useEffect(() => {
+        fetchMembers()
+    }, [fetchMembers])
 
     const handleDelete = async () => {
         if (!deleteId || !gymId) return
@@ -121,16 +146,38 @@ export default function MembersPage() {
         }
     }
 
-    const handleBulkWhatsApp = () => {
-        const selected = members.filter((m) => selectedIds.includes(m._id))
-        selected.forEach((member) => {
-            const link = generateWhatsAppLink(member.mobile, "Hello! This is a message from your gym. Your membership is important to us!")
-            window.open(link, "_blank")
-        })
+    const handleBulkSubmit = async () => {
+        if (!gymId || selectedIds.length === 0 || !bulkMessage) return
+        setSendingBulk(true)
+        const result = await sendBulkMessage(
+            gymId,
+            selectedIds,
+            bulkType,
+            bulkMessage,
+            bulkType === "email" ? bulkSubject : undefined
+        )
+
+        if (result.success) {
+            toast.success(result.message)
+            setBulkDialogOpen(false)
+            setBulkMessage("")
+            setSelectedIds([])
+        } else {
+            toast.error(result.error)
+        }
+        setSendingBulk(false)
     }
 
     const handleCSVExport = () => {
-        const headers = ["Name", "Email", "Mobile", "Plan", "Start Date", "End Date", "Status"]
+        const headers = [
+            "Name",
+            "Email",
+            "Mobile",
+            "Plan",
+            "Start Date",
+            "End Date",
+            "Status",
+        ]
         const rows = members.map((m) => [
             m.name,
             m.email,
@@ -181,11 +228,17 @@ export default function MembersPage() {
                     <p className="text-muted-foreground mt-1">{total} total members</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleCSVExport} disabled={members.length === 0}>
+                    <Button
+                        variant="outline"
+                        onClick={handleCSVExport}
+                        disabled={members.length === 0}
+                    >
                         <Download className="mr-2 h-4 w-4" /> Export
                     </Button>
                     <Link href="/dashboard/members/new">
-                        <Button><Plus className="mr-2 h-4 w-4" /> Add Member</Button>
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" /> Add Member
+                        </Button>
                     </Link>
                 </div>
             </div>
@@ -200,10 +253,19 @@ export default function MembersPage() {
                                 placeholder="Search by name, email, or mobile..."
                                 className="pl-9"
                                 value={search}
-                                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+                                onChange={(e) => {
+                                    setSearch(e.target.value)
+                                    setCurrentPage(1)
+                                }}
                             />
                         </div>
-                        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setCurrentPage(1) }}>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={(v) => {
+                                setStatusFilter(v === "all" ? "" : v)
+                                setCurrentPage(1)
+                            }}
+                        >
                             <SelectTrigger className="w-full sm:w-40">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -214,14 +276,22 @@ export default function MembersPage() {
                                 <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
                             </SelectContent>
                         </Select>
-                        <Select value={planFilter} onValueChange={(v) => { setPlanFilter(v === "all" ? "" : v); setCurrentPage(1) }}>
+                        <Select
+                            value={planFilter}
+                            onValueChange={(v) => {
+                                setPlanFilter(v === "all" ? "" : v)
+                                setCurrentPage(1)
+                            }}
+                        >
                             <SelectTrigger className="w-full sm:w-40">
                                 <SelectValue placeholder="Plan" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Plans</SelectItem>
                                 {plans.map((plan) => (
-                                    <SelectItem key={plan._id} value={plan._id}>{plan.name}</SelectItem>
+                                    <SelectItem key={plan._id} value={plan._id}>
+                                        {plan.name}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -231,14 +301,27 @@ export default function MembersPage() {
 
             {/* Bulk Actions */}
             {selectedIds.length > 0 && (
-                <Card>
-                    <CardContent className="p-3 flex items-center gap-3">
-                        <span className="text-sm font-medium">{selectedIds.length} selected</span>
-                        <Button size="sm" variant="outline" onClick={handleBulkWhatsApp}>
-                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> WhatsApp
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setSelectedIds([])}>
-                            Clear
+                <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-semibold text-primary">
+                                {selectedIds.length} members selected
+                            </span>
+                            <Separator orientation="vertical" className="h-4" />
+                            <Button
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => setBulkDialogOpen(true)}
+                            >
+                                <MessageCircle className="h-4 w-4" /> Bulk Message
+                            </Button>
+                        </div>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedIds([])}
+                        >
+                            Clear selection
                         </Button>
                     </CardContent>
                 </Card>
@@ -247,17 +330,27 @@ export default function MembersPage() {
             {/* Members Table (Desktop) */}
             {loading ? (
                 <div className="space-y-3">
-                    {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+                    {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-16 w-full" />
+                    ))}
                 </div>
             ) : members.length === 0 ? (
                 <EmptyState
                     icon={Users}
                     title="No members found"
-                    description={search || statusFilter || planFilter
-                        ? "Try adjusting your search or filters"
-                        : "Add your first member to get started"}
-                    actionLabel={!search && !statusFilter && !planFilter ? "Add Member" : undefined}
-                    onAction={!search && !statusFilter && !planFilter ? () => router.push("/dashboard/members/new") : undefined}
+                    description={
+                        search || statusFilter || planFilter
+                            ? "Try adjusting your search or filters"
+                            : "Add your first member to get started"
+                    }
+                    actionLabel={
+                        !search && !statusFilter && !planFilter ? "Add Member" : undefined
+                    }
+                    onAction={
+                        !search && !statusFilter && !planFilter
+                            ? () => router.push("/dashboard/members/new")
+                            : undefined
+                    }
                 />
             ) : (
                 <>
@@ -269,7 +362,10 @@ export default function MembersPage() {
                                     <TableRow>
                                         <TableHead className="w-12">
                                             <Checkbox
-                                                checked={selectedIds.length === members.length && members.length > 0}
+                                                checked={
+                                                    selectedIds.length === members.length &&
+                                                    members.length > 0
+                                                }
                                                 onCheckedChange={toggleAll}
                                             />
                                         </TableHead>
@@ -277,12 +373,18 @@ export default function MembersPage() {
                                         <TableHead>Mobile</TableHead>
                                         <TableHead>Plan</TableHead>
                                         <TableHead>
-                                            <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("createdAt")}>
+                                            <button
+                                                className="flex items-center gap-1 hover:text-foreground"
+                                                onClick={() => toggleSort("createdAt")}
+                                            >
                                                 Start Date <ArrowUpDown className="h-3 w-3" />
                                             </button>
                                         </TableHead>
                                         <TableHead>
-                                            <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("expiry")}>
+                                            <button
+                                                className="flex items-center gap-1 hover:text-foreground"
+                                                onClick={() => toggleSort("expiry")}
+                                            >
                                                 End Date <ArrowUpDown className="h-3 w-3" />
                                             </button>
                                         </TableHead>
@@ -310,39 +412,71 @@ export default function MembersPage() {
                                                     <div>
                                                         <p className="font-medium">{member.name}</p>
                                                         {member.email && (
-                                                            <p className="text-xs text-muted-foreground">{member.email}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {member.email}
+                                                            </p>
                                                         )}
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground">{member.mobile}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">{member.planId?.name || "N/A"}</Badge>
+                                            <TableCell className="text-muted-foreground">
+                                                {member.mobile}
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground">{formatDate(member.planStartDate)}</TableCell>
-                                            <TableCell className="text-muted-foreground">{formatDate(member.planEndDate)}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">
+                                                    {member.planId?.name || "N/A"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {formatDate(member.planStartDate)}
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {formatDate(member.planEndDate)}
+                                            </TableCell>
                                             <TableCell>{getStatusBadge(member.planEndDate)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                        >
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/members/${member._id}`)}>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                router.push(`/dashboard/members/${member._id}`)
+                                                            }
+                                                        >
                                                             <Eye className="mr-2 h-4 w-4" /> View
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/members/${member._id}?edit=true`)}>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                router.push(
+                                                                    `/dashboard/members/${member._id}?edit=true`
+                                                                )
+                                                            }
+                                                        >
                                                             <Pencil className="mr-2 h-4 w-4" /> Edit
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => {
-                                                            const link = generateWhatsAppLink(member.mobile, "Your membership is expiring soon. Please renew!")
-                                                            window.open(link, "_blank")
-                                                        }}>
+                                                        <DropdownMenuItem
+                                                            onClick={() => {
+                                                                const link = generateWhatsAppLink(
+                                                                    member.mobile,
+                                                                    "Your membership is expiring soon. Please renew!"
+                                                                )
+                                                                window.open(link, "_blank")
+                                                            }}
+                                                        >
                                                             <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(member._id)}>
+                                                        <DropdownMenuItem
+                                                            className="text-destructive"
+                                                            onClick={() => setDeleteId(member._id)}
+                                                        >
                                                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
@@ -367,9 +501,18 @@ export default function MembersPage() {
                                                 {member.name?.charAt(0)?.toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div>
-                                            <p className="font-medium">{member.name}</p>
-                                            <p className="text-sm text-muted-foreground">{member.mobile}</p>
+                                        <div className="flex items-center gap-2">
+                                            <Checkbox
+                                                checked={selectedIds.includes(member._id)}
+                                                onCheckedChange={() => toggleSelect(member._id)}
+                                                className="mt-0.5"
+                                            />
+                                            <div>
+                                                <p className="font-medium">{member.name}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {member.mobile}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                     {getStatusBadge(member.planEndDate)}
@@ -377,24 +520,47 @@ export default function MembersPage() {
                                 <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                                     <div>
                                         <p className="text-muted-foreground">Plan</p>
-                                        <p className="font-medium">{member.planId?.name || "N/A"}</p>
+                                        <p className="font-medium">
+                                            {member.planId?.name || "N/A"}
+                                        </p>
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground">Expires</p>
-                                        <p className="font-medium">{formatDate(member.planEndDate)}</p>
+                                        <p className="font-medium">
+                                            {formatDate(member.planEndDate)}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/dashboard/members/${member._id}`)}>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() =>
+                                            router.push(`/dashboard/members/${member._id}`)
+                                        }
+                                    >
                                         <Eye className="mr-1.5 h-3.5 w-3.5" /> View
                                     </Button>
-                                    <Button variant="outline" size="sm" onClick={() => {
-                                        const link = generateWhatsAppLink(member.mobile, "Your membership is expiring soon!")
-                                        window.open(link, "_blank")
-                                    }}>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            const link = generateWhatsAppLink(
+                                                member.mobile,
+                                                "Your membership is expiring soon!"
+                                            )
+                                            window.open(link, "_blank")
+                                        }}
+                                    >
                                         <MessageCircle className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button variant="outline" size="sm" className="text-destructive" onClick={() => setDeleteId(member._id)}>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-destructive"
+                                        onClick={() => setDeleteId(member._id)}
+                                    >
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                 </div>
@@ -430,6 +596,76 @@ export default function MembersPage() {
                     )}
                 </>
             )}
+
+            {/* Bulk Message Dialog */}
+            <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Send Bulk Message</DialogTitle>
+                        <DialogDescription>
+                            Sending to {selectedIds.length} members. This will be sent as an
+                            official notification.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <Tabs
+                        defaultValue="whatsapp"
+                        onValueChange={(v: any) => setBulkType(v)}
+                    >
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                            <TabsTrigger value="email">Email</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="email" className="space-y-4 pt-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="subject">Subject</Label>
+                                <Input
+                                    id="subject"
+                                    value={bulkSubject}
+                                    onChange={(e) => setBulkSubject(e.target.value)}
+                                    placeholder="Enter email subject"
+                                />
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="whatsapp" className="pt-4" />
+                    </Tabs>
+
+                    <div className="space-y-2 mt-2">
+                        <Label htmlFor="message">Message</Label>
+                        <Textarea
+                            id="message"
+                            value={bulkMessage}
+                            onChange={(e) => setBulkMessage(e.target.value)}
+                            placeholder="Type your message here..."
+                            className="min-h-[120px]"
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setBulkDialogOpen(false)}
+                            disabled={sendingBulk}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleBulkSubmit}
+                            disabled={!bulkMessage || sendingBulk}
+                        >
+                            {sendingBulk ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...
+                                </>
+                            ) : (
+                                <>
+                                    Send {bulkType === "email" ? "Emails" : "WhatsApp"}
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete Confirm */}
             <ConfirmDialog
