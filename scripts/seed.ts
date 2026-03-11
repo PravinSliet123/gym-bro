@@ -1,10 +1,19 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import { loadEnvConfig } from "@next/env";
+
+const projectDir = process.cwd();
+loadEnvConfig(projectDir);
 
 async function seed() {
-    const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/gym-bro";
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@gymbro.com";
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+    const MONGODB_URI = process.env.MONGODB_URI;
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+    if (!MONGODB_URI) {
+        console.error("MONGODB_URI is not defined in environment variables");
+        process.exit(1);
+    }
 
     try {
         await mongoose.connect(MONGODB_URI);
