@@ -9,6 +9,11 @@ async function seed() {
     const MONGODB_URI = process.env.MONGODB_URI;
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+    if (!ADMIN_PASSWORD) {
+        console.log("No passwrod")
+        return
+
+    }
 
     if (!MONGODB_URI) {
         console.error("MONGODB_URI is not defined in environment variables");
