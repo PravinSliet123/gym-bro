@@ -55,6 +55,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ImportMembersDialog } from "@/components/import-members-dialog"
 
 export default function MembersPage() {
     const { data: session } = useSession()
@@ -235,6 +236,10 @@ export default function MembersPage() {
                     >
                         <Download className="mr-2 h-4 w-4" /> Export
                     </Button>
+                    <ImportMembersDialog
+                        plans={plans}
+                        onSuccess={fetchMembers}
+                    />
                     <Link href="/dashboard/members/new">
                         <Button>
                             <Plus className="mr-2 h-4 w-4" /> Add Member

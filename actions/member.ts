@@ -318,3 +318,87 @@ export async function getExpiringMembersData(gymId: string) {
         return { success: false, error: error.message };
     }
 }
+
+export async function importMembers(
+    gymId: string,
+    membersData: any[],
+    planId: string
+) {
+    try {
+        await connectDB();
+
+        // Get plan to calculate end date
+        const plan = await MembershipPlan.findOne({ _id: planId, gymId });
+        if (!plan) return { success: false, error: "Invalid membership plan" };
+
+        const results = {
+            success: 0,
+            updated: 0,
+            failed: 0,
+            errors: [] as string[],
+        };
+
+        for (const data of membersData) {
+            try {
+                // Basic validation
+                if (!data.name || !data.mobile) {
+                    results.failed++;
+                    results.errors.push(`Missing name or mobile for ${data.name || "unknown"}`);
+                    continue;
+                }
+
+                const startDate = data.planStartDate ? new Date(data.planStartDate) : new Date();
+                const endDate = addDays(startDate, plan.durationDays);
+
+                // Check if member already exists by email (if provided) or mobile
+                const existingMember = await Member.findOne({
+                    gymId,
+                    isDeleted: false,
+                    $or: [
+                        ...(data.email ? [{ email: data.email }] : []),
+                        { mobile: data.mobile },
+                    ],
+                });
+
+                if (existingMember) {
+                    // Update existing member details (address, notes only as per requirement)
+                    // Also updating plan details for the new import
+                    await Member.findByIdAndUpdate(existingMember._id, {
+                        address: data.address || existingMember.address,
+                        notes: data.notes || existingMember.notes,
+                        planId: planId,
+                        planStartDate: startDate,
+                        planEndDate: endDate,
+                    });
+                    results.updated++;
+                } else {
+                    // Create new member
+                    await Member.create({
+                        gymId,
+                        name: data.name,
+                        email: data.email || "",
+                        mobile: data.mobile,
+                        address: data.address || "",
+                        planId: planId,
+                        planStartDate: startDate,
+                        planEndDate: endDate,
+                        notes: data.notes || "",
+                    });
+                    results.success++;
+                }
+            } catch (err: any) {
+                results.failed++;
+                results.errors.push(`Error for ${data.name}: ${err.message}`);
+            }
+        }
+
+        revalidatePath("/dashboard/members");
+        return {
+            success: true,
+            message: `Import completed: ${results.success} added, ${results.updated} updated, ${results.failed} failed.`,
+            data: results,
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message || "Failed to import members" };
+    }
+}

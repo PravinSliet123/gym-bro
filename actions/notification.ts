@@ -38,6 +38,10 @@ export async function sendBulkMessage(
 ) {
     try {
         await connectDB();
+
+        // Handle potential serialization issues where undefined becomes a string
+        const cleanSubject = (subject === "undefined" || subject === "$undefined" || !subject) ? undefined : subject;
+
         const members = await Member.find({ _id: { $in: memberIds }, gymId });
 
         let successCount = 0;
@@ -69,7 +73,7 @@ export async function sendBulkMessage(
                 type,
                 category: "bulk_message",
                 recipient,
-                subject,
+                subject: cleanSubject,
                 content: message,
                 status: result.success ? "sent" : "failed",
                 error: result.success ? undefined : result.error,
