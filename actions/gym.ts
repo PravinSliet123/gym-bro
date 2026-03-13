@@ -107,3 +107,50 @@ export async function getAdminStats() {
         return { success: false, error: error.message };
     }
 }
+
+export async function resetGymPassword(gymId: string) {
+    try {
+        await connectDB();
+        const gym = await Gym.findById(gymId);
+        if (!gym) return { success: false, error: "Gym not found" };
+
+        // Generate a random 8-character password
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let newPassword = "";
+        for (let i = 0, n = charset.length; i < 8; ++i) {
+            newPassword += charset.charAt(Math.floor(Math.random() * n));
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 12);
+        gym.passwordHash = passwordHash;
+        await gym.save();
+
+        const { sendEmail } = await import("@/lib/email-service");
+
+        const emailResult = await sendEmail({
+            to: gym.ownerEmail,
+            subject: "Your New Gym Access Password",
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2>Password Reset</h2>
+                    <p>Hello ${gym.ownerName},</p>
+                    <p>Your password for accessing the Gym Bro admin dashboard has been reset.</p>
+                    <p>Your new password is: <strong>${newPassword}</strong></p>
+                    <p>Please log in and change it as soon as possible.</p>
+                </div>
+            `,
+        });
+
+        if (!emailResult.success) {
+            return { success: false, error: "Password updated, but failed to send email: " + emailResult.error };
+        }
+
+        return {
+            success: true,
+            message: "Password reset successfully and sent to owner's email",
+            password: newPassword, // Returing to show in UI
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}

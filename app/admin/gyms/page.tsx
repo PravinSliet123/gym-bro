@@ -8,13 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { EmptyState } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Plus, Users } from "lucide-react"
+import { Building2, Plus, Users, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { PasswordResetModal } from "@/components/password-reset-modal"
 
 export default function GymsPage() {
     const [gyms, setGyms] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [resetModalOpen, setResetModalOpen] = useState(false)
+    const [selectedGym, setSelectedGym] = useState<any>(null)
 
     const fetchGyms = async () => {
         const result = await getGyms()
@@ -105,13 +108,26 @@ export default function GymsPage() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button
-                                                        variant={gym.isActive ? "outline" : "default"}
-                                                        size="sm"
-                                                        onClick={() => handleToggle(gym._id)}
-                                                    >
-                                                        {gym.isActive ? "Deactivate" : "Activate"}
-                                                    </Button>
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSelectedGym(gym)
+                                                                setResetModalOpen(true)
+                                                            }}
+                                                            title="Reset Password"
+                                                        >
+                                                            <KeyRound className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant={gym.isActive ? "outline" : "default"}
+                                                            size="sm"
+                                                            onClick={() => handleToggle(gym._id)}
+                                                        >
+                                                            {gym.isActive ? "Deactivate" : "Activate"}
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -136,14 +152,28 @@ export default function GymsPage() {
                                                 <Users className="h-3.5 w-3.5" /> {gym.memberCount} members
                                             </p>
                                         </div>
-                                        <Button
-                                            variant={gym.isActive ? "outline" : "default"}
-                                            size="sm"
-                                            className="w-full"
-                                            onClick={() => handleToggle(gym._id)}
-                                        >
-                                            {gym.isActive ? "Deactivate" : "Activate"}
-                                        </Button>
+                                        <div className="flex gap-2 w-full mt-3">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full flex-1"
+                                                onClick={() => {
+                                                    setSelectedGym(gym)
+                                                    setResetModalOpen(true)
+                                                }}
+                                            >
+                                                <KeyRound className="mr-2 h-4 w-4" />
+                                                Password
+                                            </Button>
+                                            <Button
+                                                variant={gym.isActive ? "outline" : "default"}
+                                                size="sm"
+                                                className="w-full flex-1"
+                                                onClick={() => handleToggle(gym._id)}
+                                            >
+                                                {gym.isActive ? "Deactivate" : "Activate"}
+                                            </Button>
+                                        </div>
                                     </Card>
                                 ))}
                             </div>
@@ -151,6 +181,17 @@ export default function GymsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <PasswordResetModal
+                isOpen={resetModalOpen}
+                onClose={() => {
+                    setResetModalOpen(false)
+                    setTimeout(() => setSelectedGym(null), 200)
+                }}
+                gymId={selectedGym?._id || null}
+                gymName={selectedGym?.name || ""}
+                gymEmail={selectedGym?.ownerEmail || ""}
+            />
         </div>
     )
 }
