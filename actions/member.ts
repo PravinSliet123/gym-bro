@@ -22,6 +22,18 @@ export async function createMember(gymId: string, data: {
         const validated = memberSchema.parse(data);
         await connectDB();
 
+        // Check member limit
+        const gym = await (await import("@/models/Gym")).Gym.findById(gymId);
+        if (!gym) return { success: false, error: "Gym not found" };
+
+        const currentMembers = await Member.countDocuments({ gymId, isDeleted: false });
+        if (currentMembers >= gym.memberLimit) {
+            return {
+                success: false,
+                error: `Member limit reached (${gym.memberLimit}). Please upgrade your plan to add more members.`
+            };
+        }
+
         // Get plan to calculate end date
         const plan = await MembershipPlan.findOne({ _id: validated.planId, gymId });
         if (!plan) return { success: false, error: "Invalid membership plan" };
@@ -74,16 +86,7 @@ export async function getMembers(
             limit = 10,
         } = options;
 
-        const query: any = { gymId, isDeleted: false };
-
-        // Search
-        if (search) {
-            query.$or = [
-                { name: { $regex: search, $options: "i" } },
-                { email: { $regex: search, $options: "i" } },
-                { mobile: { $regex: search, $options: "i" } },
-            ];
-        }
+        const query: any = { gymId };
 
         // Filter by plan
         if (planId) {
@@ -217,6 +220,26 @@ export async function deleteMember(memberId: string, gymId: string) {
     }
 }
 
+export async function toggleMemberStatus(memberId: string, gymId: string) {
+    try {
+        await connectDB();
+        const member = await Member.findOne({ _id: memberId, gymId });
+        if (!member) return { success: false, error: "Member not found" };
+
+        member.isDeleted = !member.isDeleted;
+        await member.save();
+
+        revalidatePath("/dashboard/members");
+        return {
+            success: true,
+            message: `Member ${member.isDeleted ? "deactivated" : "activated"} successfully`,
+            isDeleted: member.isDeleted,
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 export async function getDashboardStats(gymId: string) {
     try {
         await connectDB();
@@ -322,14 +345,23 @@ export async function getExpiringMembersData(gymId: string) {
 export async function importMembers(
     gymId: string,
     membersData: any[],
-    planId: string
+    defaultPlanId: string
 ) {
     try {
         await connectDB();
 
-        // Get plan to calculate end date
-        const plan = await MembershipPlan.findOne({ _id: planId, gymId });
-        if (!plan) return { success: false, error: "Invalid membership plan" };
+        const gym = await (await import("@/models/Gym")).Gym.findById(gymId);
+        if (!gym) return { success: false, error: "Gym not found" };
+
+        const currentMembersCount = await Member.countDocuments({ gymId, isDeleted: false });
+        const availableSlots = gym.memberLimit - currentMembersCount;
+
+        if (availableSlots <= 0) {
+            return {
+                success: false,
+                error: `Member limit reached (${gym.memberLimit}). Please upgrade your plan to import more members.`
+            };
+        }
 
         const results = {
             success: 0,
@@ -344,6 +376,14 @@ export async function importMembers(
                 if (!data.name || !data.mobile) {
                     results.failed++;
                     results.errors.push(`Missing name or mobile for ${data.name || "unknown"}`);
+                    continue;
+                }
+
+                const planId = data.planId || defaultPlanId;
+                const plan = await MembershipPlan.findOne({ _id: planId, gymId });
+                if (!plan) {
+                    results.failed++;
+                    results.errors.push(`Invalid plan for ${data.name}`);
                     continue;
                 }
 

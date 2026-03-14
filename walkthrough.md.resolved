@@ -1,0 +1,131 @@
+# Gym Membership Management SaaS — Walkthrough
+
+## What Was Built
+
+A complete **multi-tenant SaaS platform** for gym owners to manage members, plans, and subscriptions. Built with Next.js 16, TypeScript, MongoDB, TailwindCSS, ShadCN UI, NextAuth, Zod, and React Hook Form.
+
+## Project Structure
+
+```
+gym-bro/
+├── app/
+│   ├── layout.tsx              # Root layout (providers, theme, toaster)
+│   ├── page.tsx                # Root redirect (role-based)
+│   ├── globals.css             # ShadCN theme (purple primary, dark mode)
+│   ├── login/page.tsx          # Login page
+│   ├── admin/
+│   │   ├── layout.tsx          # Admin sidebar layout
+│   │   ├── page.tsx            # Admin dashboard (stats cards)
+│   │   ├── gyms/page.tsx       # Gym list (table + mobile cards)
+│   │   └── create-gym/page.tsx # Create gym form
+│   ├── dashboard/
+│   │   ├── layout.tsx          # Gym owner sidebar layout
+│   │   ├── page.tsx            # Dashboard (stats + charts)
+│   │   ├── members/
+│   │   │   ├── page.tsx        # Member list (search/filter/sort/paginate)
+│   │   │   ├── new/page.tsx    # Add member form
+│   │   │   └── [id]/page.tsx   # View/edit member
+│   │   ├── plans/page.tsx      # Plans management (CRUD dialog)
+│   │   └── settings/page.tsx   # Account & subscription info
+│   └── api/
+│       ├── auth/[...nextauth]/ # NextAuth handler
+│       └── cron/expiry-check/  # Cron job for expiry notifications
+├── components/
+│   ├── ui/                     # 12 ShadCN components
+│   ├── sidebar.tsx             # Responsive sidebar (mobile drawer)
+│   ├── stats-card.tsx          # Reusable stats card
+│   ├── confirm-dialog.tsx      # Delete confirmation
+│   ├── empty-state.tsx         # Empty state pattern
+│   ├── theme-*.tsx             # Dark mode support
+│   └── auth-provider.tsx       # Session provider
+├── models/                     # 4 Mongoose models
+├── actions/                    # Server actions (gym, member, plan, notification)
+├── lib/                        # DB, auth, utils, validations
+├── types/                      # TypeScript interfaces
+├── hooks/                      # useDebounce
+├── scripts/seed.ts             # Admin seed script
+└── middleware.ts               # Route protection
+```
+
+## Key Features
+
+| Feature | Details |
+|---------|---------|
+| **Auth** | NextAuth credentials, JWT, role-based (ADMIN/GYM_OWNER) |
+| **Admin Panel** | Create gyms, view list, activate/deactivate |
+| **Dashboard** | Stats cards, bar chart (new members), pie chart (status) |
+| **Members** | Full CRUD, search/filter/sort, pagination, bulk WhatsApp |
+| **Plans** | CRUD via dialog, card grid with hover actions |
+| **Responsive** | Table → card views on mobile, drawer sidebar |
+| **Dark Mode** | System/manual toggle, full theme support |
+| **Export** | CSV download of member list |
+| **Notifications** | WhatsApp link generation, cron expiry check |
+| **SaaS-Ready** | Subscription fields, member limits, free tier |
+
+## Getting Started
+
+1. Copy [.env.example](file:///D:/Free/product/gym-bro/.env.example) to `.env.local` and fill in your MongoDB URI
+2. Run `npm run seed` to create the admin user (`admin@gymbro.com` / `admin123`)
+3. Run `npm run dev` to start the dev server
+4. Login as admin → create a gym → login as gym owner → manage members
+
+## Build Verification
+
+```
+✓ Compiled successfully in 8.9s
+✓ TypeScript passed
+✓ 11 static + 2 dynamic pages generated
+✓ All 13 routes compiled
+✓ Exit code: 0
+```
+
+### Routes
+
+| Route | Type |
+|-------|------|
+| `/` | Dynamic (auth redirect) |
+| `/login` | Static |
+| `/admin` | Dynamic (server data) |
+| `/admin/gyms` | Static (client fetch) |
+| `/admin/create-gym` | Static |
+| `/dashboard` | Static (client fetch) |
+| `/dashboard/members` | Static (client fetch) |
+| `/dashboard/members/new` | Static |
+| `/dashboard/members/[id]` | Dynamic |
+| `/dashboard/plans` | Static (client fetch) |
+| `/dashboard/settings` | Static |
+| `/api/auth/[...]` | Dynamic |
+| `/api/cron/expiry-check` | Dynamic |
+
+---
+
+### Phase 11: Bulk Messaging & Automated Reminders
+Bulk messaging and automated reminders have been implemented to help gym owners communicate with their members and ensure timely renewals.
+
+#### 1. Notification Services
+- **Email Service**: Uses Nodemailer with SMTP configuration to send professional emails.
+- **WhatsApp Service**: Integrates with the WhatsApp Business Cloud API for automated messaging.
+
+#### 2. Automated Reminders
+- A cron job (`/api/cron/expiry-check`) runs daily.
+- It identifies members expiring in 10, 5, or 1 day.
+- Sends both Email and WhatsApp reminders.
+- Tracks all notifications in the [Notification](file:///D:/Free/product/gym-bro/models/Notification.ts#3-15) model to prevent duplicate reminders.
+
+#### 3. Bulk Messaging UI
+- Added a "Bulk Message" button to the Members page (visible when members are selected).
+- Responsive dialog for composing messages.
+- Support for both Email and WhatsApp message types.
+- Real-time feedback on delivery status.
+
+#### 4. Notification History
+- Every message (automated or manual) is logged in the [Notification](file:///D:/Free/product/gym-bro/models/Notification.ts#3-15) model.
+- Tracks recipient, content, status, and error messages for auditing.
+
+---
+
+### Verification Results
+- **Build**: Successfully built the application using `npx next build`.
+- **Routes**: All 14 routes are active and functional.
+- **Components**: Verified all UI components, including the new `Tabs` and `BulkMessagingDialog`.
+- **Security**: Cron job is protected via `CRON_SECRET` headers.

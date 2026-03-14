@@ -90,7 +90,7 @@ export function PasswordResetModal({ isOpen, onClose, gymId, gymName, gymEmail }
                                 <div className="space-y-2">
                                     <Label>New Password</Label>
                                     <div className="flex gap-2">
-                                        <Input readOnly value={generatedPassword} className="bg-white font-mono" />
+                                        <Input readOnly value={generatedPassword} className="bg-white text-green-500 outline-0 border-none font-mono" />
                                         <Button variant="outline" size="icon" onClick={handleCopy} title="Copy password">
                                             <Copy className="h-4 w-4" />
                                         </Button>

@@ -47,6 +47,7 @@ interface CSVRow {
     mobile: string
     address?: string
     notes?: string
+    planId?: string
     errors?: string[]
 }
 
@@ -80,6 +81,7 @@ export function ImportMembersDialog({ plans, onSuccess }: ImportMembersDialogPro
                         mobile: row.Mobile || row.mobile || "",
                         address: row.Address || row.address || "",
                         notes: row.Notes || row.notes || "",
+                        planId: undefined, // Will use global by default but can be overridden
                         errors: errors.length > 0 ? errors : undefined
                     }
                 })
@@ -205,6 +207,7 @@ export function ImportMembersDialog({ plans, onSuccess }: ImportMembersDialogPro
                                             <TableHead>Name</TableHead>
                                             <TableHead>Mobile</TableHead>
                                             <TableHead>Email</TableHead>
+                                            <TableHead>Plan</TableHead>
                                             <TableHead>Status/Errors</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -214,6 +217,27 @@ export function ImportMembersDialog({ plans, onSuccess }: ImportMembersDialogPro
                                                 <TableCell className="font-medium">{row.name || "-"}</TableCell>
                                                 <TableCell>{row.mobile || "-"}</TableCell>
                                                 <TableCell className="text-muted-foreground">{row.email || "-"}</TableCell>
+                                                <TableCell className="min-w-[150px]">
+                                                    <Select
+                                                        value={row.planId || selectedPlanId}
+                                                        onValueChange={(v) => {
+                                                            const newRows = [...rows];
+                                                            newRows[i] = { ...newRows[i], planId: v };
+                                                            setRows(newRows);
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-8 py-0">
+                                                            <SelectValue placeholder="Plan" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {plans.map((plan) => (
+                                                                <SelectItem key={plan._id} value={plan._id}>
+                                                                    {plan.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
                                                 <TableCell>
                                                     {row.errors ? (
                                                         <div className="flex flex-col gap-1">

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getMembers, deleteMember } from "@/actions/member"
+import { getMembers, deleteMember, toggleMemberStatus } from "@/actions/member"
 import { getPlans } from "@/actions/plan"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"
@@ -98,6 +99,7 @@ export default function MembersPage() {
             page: currentPage,
             limit: 10,
         })
+        console.log(result)
         if (result.success && result.data) {
             setMembers(result.data.members)
             setTotal(result.data.total)
@@ -109,6 +111,7 @@ export default function MembersPage() {
     const fetchPlans = useCallback(async () => {
         if (!gymId) return
         const result = await getPlans(gymId)
+
         if (result.success) setPlans(result.data || [])
     }, [gymId])
 
@@ -131,6 +134,22 @@ export default function MembersPage() {
         }
         setDeleteId(null)
         setDeleting(false)
+    }
+
+    const handleToggleStatus = async (memberId: string) => {
+        if (!gymId) return
+        const result = await toggleMemberStatus(memberId, gymId)
+        if (result.success) {
+            toast.success(result.message)
+            // Optimistic update
+            setMembers((prev) =>
+                prev.map((m) =>
+                    m._id === memberId ? { ...m, isDeleted: result.isDeleted } : m
+                )
+            )
+        } else {
+            toast.error(result.error)
+        }
     }
 
     const toggleSelect = (id: string) => {
@@ -228,7 +247,7 @@ export default function MembersPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Members</h1>
                     <p className="text-muted-foreground mt-1">{total} total members</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Button
                         variant="outline"
                         onClick={handleCSVExport}
@@ -394,6 +413,7 @@ export default function MembersPage() {
                                             </button>
                                         </TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead>Active</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -439,6 +459,12 @@ export default function MembersPage() {
                                                 {formatDate(member.planEndDate)}
                                             </TableCell>
                                             <TableCell>{getStatusBadge(member.planEndDate)}</TableCell>
+                                            <TableCell>
+                                                <Switch
+                                                    checked={!member.isDeleted}
+                                                    onCheckedChange={() => handleToggleStatus(member._id)}
+                                                />
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -520,7 +546,13 @@ export default function MembersPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    {getStatusBadge(member.planEndDate)}
+                                    <div className="flex gap-2">
+                                        {getStatusBadge(member.planEndDate)}
+                                        <Switch
+                                            checked={!member.isDeleted}
+                                            onCheckedChange={() => handleToggleStatus(member._id)}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                                     <div>

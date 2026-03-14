@@ -14,9 +14,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Camera } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { ImageCapture } from "@/components/image-capture"
 
 export default function NewMemberPage() {
     const { data: session } = useSession()
@@ -92,15 +93,24 @@ export default function NewMemberPage() {
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                         {/* Personal Info */}
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Name *</Label>
-                                <Input id="name" placeholder="John Doe" {...register("name")} />
-                                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                            <div className="space-y-2 sm:col-span-1">
+                                <Label>Profile Picture</Label>
+                                <ImageCapture
+                                    value={watch("profileImage")}
+                                    onChange={(v) => setValue("profileImage", v)}
+                                />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="mobile">Mobile *</Label>
-                                <Input id="mobile" placeholder="9876543210" {...register("mobile")} />
-                                {errors.mobile && <p className="text-xs text-destructive">{errors.mobile.message}</p>}
+                            <div className="space-y-4 sm:col-span-1">
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Name *</Label>
+                                    <Input id="name" placeholder="John Doe" {...register("name")} />
+                                    {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="mobile">Mobile *</Label>
+                                    <Input id="mobile" placeholder="9876543210" {...register("mobile")} />
+                                    {errors.mobile && <p className="text-xs text-destructive">{errors.mobile.message}</p>}
+                                </div>
                             </div>
                         </div>
 

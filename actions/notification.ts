@@ -42,7 +42,12 @@ export async function sendBulkMessage(
         // Handle potential serialization issues where undefined becomes a string
         const cleanSubject = (subject === "undefined" || subject === "$undefined" || !subject) ? undefined : subject;
 
-        const members = await Member.find({ _id: { $in: memberIds }, gymId });
+        const gym = await (await import("@/models/Gym")).Gym.findById(gymId);
+        if (gym?.subscriptionPlan === "free") {
+            return { success: false, error: "Messaging is not allowed in the Free Plan. Please upgrade to a paid plan." };
+        }
+
+        const members = await Member.find({ _id: { $in: memberIds }, gymId, isDeleted: false });
 
         let successCount = 0;
         let failCount = 0;
@@ -114,6 +119,8 @@ export async function processAutomatedReminders() {
             }).populate("gymId");
 
             for (const member of members) {
+                const gym = member.gymId as any;
+                if (gym?.subscriptionPlan === "free") continue;
                 // Check if reminder already sent today for this category
                 const existing = await Notification.findOne({
                     memberId: member._id,

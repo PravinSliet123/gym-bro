@@ -1,14 +1,18 @@
 "use client"
 
+import { useState } from "react"
 import { useSession } from "next-auth/react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Building2, Mail, Phone, MapPin, CalendarDays, Crown } from "lucide-react"
+import { Building2, Mail, Phone, MapPin, CalendarDays, Crown, KeyRound } from "lucide-react"
+import { PasswordResetModal } from "@/components/password-reset-modal"
 
 export default function SettingsPage() {
     const { data: session } = useSession()
     const user = session?.user as any
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false)
 
     return (
         <div className="space-y-6">
@@ -47,16 +51,37 @@ export default function SettingsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
+                            <KeyRound className="h-5 w-5 text-primary" />
+                            Security
+                        </CardTitle>
+                        <CardDescription>Manage your account security and password</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="font-medium">Password</p>
+                                <p className="text-sm text-muted-foreground">Reset your account password</p>
+                            </div>
+                            <Button variant="outline" onClick={() => setIsResetModalOpen(true)}>
+                                Reset Password
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
                             <Crown className="h-5 w-5 text-amber-500" />
                             Subscription
                         </CardTitle>
                         <CardDescription>Your current plan and usage</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border">
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-linear-to-r from-primary/10 to-primary/5 border">
                             <div>
                                 <p className="font-semibold text-lg">Free Plan</p>
-                                <p className="text-sm text-muted-foreground">Up to 50 members</p>
+                                <p className="text-sm text-muted-foreground">Up to 100 members</p>
                             </div>
                             <Badge variant="success">Active</Badge>
                         </div>
@@ -67,6 +92,14 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <PasswordResetModal
+                isOpen={isResetModalOpen}
+                onClose={() => setIsResetModalOpen(false)}
+                gymId={user?.gymId}
+                gymName={user?.name}
+                gymEmail={user?.email}
+            />
         </div>
     )
 }

@@ -22,7 +22,7 @@ const GymSchema = new Schema(
             default: "active",
         },
         subscriptionExpiry: { type: Date },
-        memberLimit: { type: Number, default: 50 },
+        memberLimit: { type: Number, default: 100 },
     },
     { timestamps: true }
 );
