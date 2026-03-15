@@ -298,6 +298,7 @@ export default function MembersPage() {
                                 <SelectItem value="active">Active</SelectItem>
                                 <SelectItem value="expired">Expired</SelectItem>
                                 <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
+                                <SelectItem value="inactive">Inactive</SelectItem>
                             </SelectContent>
                         </Select>
                         <Select
@@ -337,7 +338,8 @@ export default function MembersPage() {
                                 className="gap-2"
                                 onClick={() => setBulkDialogOpen(true)}
                             >
-                                <MessageCircle className="h-4 w-4" /> Bulk Message
+                                <MessageCircle className="h-4 w-4" />
+                                <span className=" md:block hidden "> Bulk Message</span>
                             </Button>
                         </div>
                         <Button
@@ -419,7 +421,7 @@ export default function MembersPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {members.map((member) => (
-                                        <TableRow key={member._id}>
+                                        <TableRow key={member._id} className={member.isDeleted ? "opacity-50" : ""}>
                                             <TableCell>
                                                 <Checkbox
                                                     checked={selectedIds.includes(member._id)}

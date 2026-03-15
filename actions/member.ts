@@ -98,16 +98,22 @@ export async function getMembers(
         const sevenDays = new Date();
         sevenDays.setDate(sevenDays.getDate() + 7);
 
-        if (status === "active") {
-            query.planEndDate = { $gt: sevenDays };
+        if (status === "inactive") {
+            query.isDeleted = true;
+        } else if (status === "active") {
+            query.isDeleted = false;
+            query.planEndDate = { $gte: now };
         } else if (status === "expired") {
+            query.isDeleted = false;
             query.planEndDate = { $lt: now };
         } else if (status === "expiring-soon") {
+            query.isDeleted = false;
             query.planEndDate = { $gte: now, $lte: sevenDays };
         }
+        // else: no status filter — show all, active first (sorted below)
 
-        // Sort
-        const sort: any = {};
+        // Sort: active members (isDeleted=false) always come first
+        const sort: any = { isDeleted: 1 };
         if (sortBy === "expiry") {
             sort.planEndDate = sortOrder === "asc" ? 1 : -1;
         } else if (sortBy === "name") {
