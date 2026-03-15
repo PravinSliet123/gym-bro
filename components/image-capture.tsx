@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Camera, Upload, X, Check, AlertCircle } from "lucide-react"
+import { Camera, Upload, X, Check, AlertCircle, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -50,9 +50,20 @@ function base64SizeBytes(dataUrl: string): number {
 export function ImageCapture({ value, onChange, className }: ImageCaptureProps) {
     const [isCapturing, setIsCapturing] = useState(false)
     const [preview, setPreview] = useState<string | null>(value || null)
+    const [facingMode, setFacingMode] = useState<"user" | "environment">("user")
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Stop camera when component unmounts
+    useEffect(() => {
+        return () => {
+            if (videoRef.current && videoRef.current.srcObject) {
+                const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
+                tracks.forEach((track) => track.stop())
+            }
+        }
+    }, [])
 
     const handleCompressAndSet = async (dataUrl: string) => {
         let compressed = await compressImage(dataUrl)
@@ -68,19 +79,36 @@ export function ImageCapture({ value, onChange, className }: ImageCaptureProps) 
         onChange(compressed)
     }
 
-    const startCamera = async () => {
+    const startCamera = async (mode: "user" | "environment" = facingMode) => {
         setIsCapturing(true)
         setPreview(null)
+
+        // Stop existing tracks if any
+        if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
+            tracks.forEach((track) => track.stop())
+        }
+
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: mode }
+            })
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
+                // Use the mode that was actually granted if possible, 
+                // but usually we just track what we requested
+                setFacingMode(mode)
             }
         } catch (err) {
             console.error("Error accessing camera:", err)
             toast.error("Could not access camera. Please allow camera permissions.")
             setIsCapturing(false)
         }
+    }
+
+    const toggleCamera = async () => {
+        const newMode = facingMode === "user" ? "environment" : "user"
+        await startCamera(newMode)
     }
 
     const stopCamera = () => {
@@ -173,7 +201,7 @@ export function ImageCapture({ value, onChange, className }: ImageCaptureProps) 
             <div className="flex flex-wrap gap-2">
                 {!isCapturing && (
                     <>
-                        <Button type="button" variant="outline" size="sm" onClick={startCamera}>
+                        <Button type="button" variant="outline" size="sm" onClick={() => startCamera()}>
                             <Camera className="mr-2 h-4 w-4" />
                             Take Photo
                         </Button>
@@ -188,6 +216,10 @@ export function ImageCapture({ value, onChange, className }: ImageCaptureProps) 
                         <Button type="button" size="sm" onClick={captureImage}>
                             <Check className="mr-2 h-4 w-4" />
                             Capture
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={toggleCamera}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Flip
                         </Button>
                         <Button type="button" variant="ghost" size="sm" onClick={stopCamera}>
                             Cancel
