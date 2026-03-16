@@ -102,11 +102,6 @@ export default function CreateGymPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-2 mt-4">
-                                <Label htmlFor="password">Password</Label>
-                                <Input id="password" type="password" placeholder="••••••••" {...register("password")} />
-                                {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
-                            </div>
                         </div>
 
                         <div className="flex gap-3 pt-2">

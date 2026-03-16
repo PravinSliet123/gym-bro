@@ -12,7 +12,7 @@ export const gymSchema = z.object({
     email: z.string().email("Invalid email address"),
     ownerName: z.string().min(2, "Owner name must be at least 2 characters"),
     ownerEmail: z.string().email("Invalid owner email"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
 });
 
 export const planSchema = z.object({
