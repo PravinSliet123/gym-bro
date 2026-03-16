@@ -150,19 +150,23 @@ export default function MemberDetailPage() {
     if (!editMode) {
         return (
             <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/members">
+                <div className="md:flex items-center gap-4">
+                   <div className=" flex items-center gap-4">
+                     <Link href="/dashboard/members">
                         <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
                     </Link>
                     <div className="flex-1">
-                        <h1 className="text-3xl font-bold tracking-tight">Member Profile</h1>
+                        <h1 className=" text-xl md:text-3xl font-bold tracking-tight">Member Profile</h1>
                     </div>
-                    <Button variant="outline" onClick={() => setEditMode(true)}>
+                   </div>
+                   <div className=" flex justify-between md:mt-0 mt-2 items-center gap-4 ">
+                     <Button variant="outline" onClick={() => setEditMode(true)}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit
                     </Button>
                     <Button variant="outline" className="text-destructive" onClick={() => setDeleteConfirm(true)}>
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                     </Button>
+                   </div>
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-3">

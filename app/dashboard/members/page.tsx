@@ -1,720 +1,747 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useCallback } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { getMembers, deleteMember, toggleMemberStatus } from "@/actions/member"
-import { getPlans } from "@/actions/plan"
-import { useDebounce } from "@/hooks/use-debounce"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import { ConfirmDialog } from "@/components/confirm-dialog"
-import { EmptyState } from "@/components/empty-state"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getMembers, deleteMember, toggleMemberStatus } from "@/actions/member";
+import { getPlans } from "@/actions/plan";
+import { useDebounce } from "@/hooks/use-debounce";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
-    Search,
-    Plus,
-    MoreHorizontal,
-    Eye,
-    Pencil,
-    Trash2,
-    Users,
-    Download,
-    MessageCircle,
-    Mail,
-    ChevronLeft,
-    ChevronRight,
-    ArrowUpDown,
-    Loader2,
-} from "lucide-react"
-import { formatDate, getMemberStatus, generateWhatsAppLink } from "@/lib/utils"
-import { sendBulkMessage } from "@/actions/notification"
-import { toast } from "sonner"
-import Link from "next/link"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { EmptyState } from "@/components/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ImportMembersDialog } from "@/components/import-members-dialog"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  Eye,
+  Pencil,
+  Trash2,
+  Users,
+  Download,
+  MessageCircle,
+  Mail,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  Loader2,
+} from "lucide-react";
+import { formatDate, getMemberStatus, generateWhatsAppLink } from "@/lib/utils";
+import { sendBulkMessage } from "@/actions/notification";
+import { toast } from "sonner";
+import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImportMembersDialog } from "@/components/import-members-dialog";
 
 export default function MembersPage() {
-    const { data: session } = useSession()
-    const gymId = (session?.user as any)?.gymId
-    const router = useRouter()
+  const { data: session } = useSession();
+  const gymId = (session?.user as any)?.gymId;
+  const router = useRouter();
 
-    const [members, setMembers] = useState<any[]>([])
-    const [plans, setPlans] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
-    const [total, setTotal] = useState(0)
-    const [pages, setPages] = useState(1)
-    const [currentPage, setCurrentPage] = useState(1)
-    const [search, setSearch] = useState("")
-    const [statusFilter, setStatusFilter] = useState("")
-    const [planFilter, setPlanFilter] = useState("")
-    const [sortBy, setSortBy] = useState("createdAt")
-    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-    const [selectedIds, setSelectedIds] = useState<string[]>([])
-    const [deleteId, setDeleteId] = useState<string | null>(null)
-    const [deleting, setDeleting] = useState(false)
+  const [members, setMembers] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-    // Bulk Message State
-    const [bulkDialogOpen, setBulkDialogOpen] = useState(false)
-    const [bulkType, setBulkType] = useState<"email" | "whatsapp">("whatsapp")
-    const [bulkMessage, setBulkMessage] = useState("")
-    const [bulkSubject, setBulkSubject] = useState("Important update from your Gym")
-    const [sendingBulk, setSendingBulk] = useState(false)
+  // Bulk Message State
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkType, setBulkType] = useState<"email" | "whatsapp">("whatsapp");
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkSubject, setBulkSubject] = useState(
+    "Important update from your Gym",
+  );
+  const [sendingBulk, setSendingBulk] = useState(false);
 
-    const debouncedSearch = useDebounce(search, 300)
+  const debouncedSearch = useDebounce(search, 300);
 
-    const fetchMembers = useCallback(async () => {
-        if (!gymId) return
-        setLoading(true)
-        const result = await getMembers(gymId, {
-            search: debouncedSearch,
-            status: statusFilter,
-            planId: planFilter,
-            sortBy,
-            sortOrder,
-            page: currentPage,
-            limit: 10,
-        })
-        console.log(result)
-        if (result.success && result.data) {
-            setMembers(result.data.members)
-            setTotal(result.data.total)
-            setPages(result.data.pages)
-        }
-        setLoading(false)
-    }, [gymId, debouncedSearch, statusFilter, planFilter, sortBy, sortOrder, currentPage])
-
-    const fetchPlans = useCallback(async () => {
-        if (!gymId) return
-        const result = await getPlans(gymId)
-
-        if (result.success) setPlans(result.data || [])
-    }, [gymId])
-
-    useEffect(() => {
-        fetchPlans()
-    }, [fetchPlans])
-    useEffect(() => {
-        fetchMembers()
-    }, [fetchMembers])
-
-    const handleDelete = async () => {
-        if (!deleteId || !gymId) return
-        setDeleting(true)
-        const result = await deleteMember(deleteId, gymId)
-        if (result.success) {
-            toast.success(result.message)
-            fetchMembers()
-        } else {
-            toast.error(result.error)
-        }
-        setDeleteId(null)
-        setDeleting(false)
+  const fetchMembers = useCallback(async () => {
+    if (!gymId) return;
+    setLoading(true);
+    const result = await getMembers(gymId, {
+      search: debouncedSearch,
+      status: statusFilter,
+      planId: planFilter,
+      sortBy,
+      sortOrder,
+      page: currentPage,
+      limit: 10,
+    });
+    console.log(result);
+    if (result.success && result.data) {
+      setMembers(result.data.members);
+      setTotal(result.data.total);
+      setPages(result.data.pages);
     }
+    setLoading(false);
+  }, [
+    gymId,
+    debouncedSearch,
+    statusFilter,
+    planFilter,
+    sortBy,
+    sortOrder,
+    currentPage,
+  ]);
 
-    const handleToggleStatus = async (memberId: string) => {
-        if (!gymId) return
-        const result = await toggleMemberStatus(memberId, gymId)
-        if (result.success) {
-            toast.success(result.message)
-            // Optimistic update
-            setMembers((prev) =>
-                prev.map((m) =>
-                    m._id === memberId ? { ...m, isDeleted: result.isDeleted } : m
-                )
-            )
-        } else {
-            toast.error(result.error)
-        }
+  const fetchPlans = useCallback(async () => {
+    if (!gymId) return;
+    const result = await getPlans(gymId);
+
+    if (result.success) setPlans(result.data || []);
+  }, [gymId]);
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
+
+  const handleDelete = async () => {
+    if (!deleteId || !gymId) return;
+    setDeleting(true);
+    const result = await deleteMember(deleteId, gymId);
+    if (result.success) {
+      toast.success(result.message);
+      fetchMembers();
+    } else {
+      toast.error(result.error);
     }
+    setDeleteId(null);
+    setDeleting(false);
+  };
 
-    const toggleSelect = (id: string) => {
-        setSelectedIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        )
+  const handleToggleStatus = async (memberId: string) => {
+    if (!gymId) return;
+    const result = await toggleMemberStatus(memberId, gymId);
+    if (result.success) {
+      toast.success(result.message);
+      // Optimistic update
+      setMembers((prev) =>
+        prev.map((m) =>
+          m._id === memberId ? { ...m, isDeleted: result.isDeleted } : m,
+        ),
+      );
+    } else {
+      toast.error(result.error);
     }
+  };
 
-    const toggleAll = () => {
-        if (selectedIds.length === members.length) {
-            setSelectedIds([])
-        } else {
-            setSelectedIds(members.map((m) => m._id))
-        }
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.length === members.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(members.map((m) => m._id));
     }
+  };
 
-    const handleBulkSubmit = async () => {
-        if (!gymId || selectedIds.length === 0 || !bulkMessage) return
-        setSendingBulk(true)
-        const result = await sendBulkMessage(
-            gymId,
-            selectedIds,
-            bulkType,
-            bulkMessage,
-            bulkType === "email" ? bulkSubject : undefined
-        )
+  const handleBulkSubmit = async () => {
+    if (!gymId || selectedIds.length === 0 || !bulkMessage) return;
+    setSendingBulk(true);
+    const result = await sendBulkMessage(
+      gymId,
+      selectedIds,
+      bulkType,
+      bulkMessage,
+      bulkType === "email" ? bulkSubject : undefined,
+    );
 
-        if (result.success) {
-            toast.success(result.message)
-            setBulkDialogOpen(false)
-            setBulkMessage("")
-            setSelectedIds([])
-        } else {
-            toast.error(result.error)
-        }
-        setSendingBulk(false)
+    if (result.success) {
+      toast.success(result.message);
+      setBulkDialogOpen(false);
+      setBulkMessage("");
+      setSelectedIds([]);
+    } else {
+      toast.error(result.error);
     }
+    setSendingBulk(false);
+  };
 
-    const handleCSVExport = () => {
-        const headers = [
-            "Name",
-            "Email",
-            "Mobile",
-            "Plan",
-            "Start Date",
-            "End Date",
-            "Status",
-        ]
-        const rows = members.map((m) => [
-            m.name,
-            m.email,
-            m.mobile,
-            m.planId?.name || "",
-            formatDate(m.planStartDate),
-            formatDate(m.planEndDate),
-            getMemberStatus(m.planEndDate),
-        ])
-        const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
-        const blob = new Blob([csv], { type: "text/csv" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = "members.csv"
-        a.click()
-        URL.revokeObjectURL(url)
-        toast.success("CSV exported successfully")
+  const handleCSVExport = () => {
+    const headers = [
+      "Name",
+      "Email",
+      "Mobile",
+      "Plan",
+      "Start Date",
+      "End Date",
+      "Status",
+    ];
+    const rows = members.map((m) => [
+      m.name,
+      m.email,
+      m.mobile,
+      m.planId?.name || "",
+      formatDate(m.planStartDate),
+      formatDate(m.planEndDate),
+      getMemberStatus(m.planEndDate),
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "members.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported successfully");
+  };
+
+  const getStatusBadge = (endDate: string) => {
+    const status = getMemberStatus(endDate);
+    switch (status) {
+      case "active":
+        return <Badge variant="success">Active</Badge>;
+      case "expired":
+        return <Badge variant="destructive">Expired</Badge>;
+      case "expiring-soon":
+        return <Badge variant="warning">Expiring Soon</Badge>;
     }
+  };
 
-    const getStatusBadge = (endDate: string) => {
-        const status = getMemberStatus(endDate)
-        switch (status) {
-            case "active":
-                return <Badge variant="success">Active</Badge>
-            case "expired":
-                return <Badge variant="destructive">Expired</Badge>
-            case "expiring-soon":
-                return <Badge variant="warning">Expiring Soon</Badge>
-        }
+  const toggleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
     }
+  };
 
-    const toggleSort = (field: string) => {
-        if (sortBy === field) {
-            setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-        } else {
-            setSortBy(field)
-            setSortOrder("asc")
-        }
-    }
-
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Members</h1>
-                    <p className="text-muted-foreground mt-1">{total} total members</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={handleCSVExport}
-                        disabled={members.length === 0}
-                    >
-                        <Download className="mr-2 h-4 w-4" /> Export
-                    </Button>
-                    <ImportMembersDialog
-                        plans={plans}
-                        onSuccess={fetchMembers}
-                    />
-                    <Link href="/dashboard/members/new">
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" /> Add Member
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <Card>
-                <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by name, email, or mobile..."
-                                className="pl-9"
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.target.value)
-                                    setCurrentPage(1)
-                                }}
-                            />
-                        </div>
-                        <Select
-                            value={statusFilter}
-                            onValueChange={(v) => {
-                                setStatusFilter(v === "all" ? "" : v)
-                                setCurrentPage(1)
-                            }}
-                        >
-                            <SelectTrigger className="w-full sm:w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="expired">Expired</SelectItem>
-                                <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
-                                <SelectItem value="inactive">Inactive</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select
-                            value={planFilter}
-                            onValueChange={(v) => {
-                                setPlanFilter(v === "all" ? "" : v)
-                                setCurrentPage(1)
-                            }}
-                        >
-                            <SelectTrigger className="w-full sm:w-40">
-                                <SelectValue placeholder="Plan" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Plans</SelectItem>
-                                {plans.map((plan) => (
-                                    <SelectItem key={plan._id} value={plan._id}>
-                                        {plan.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Bulk Actions */}
-            {selectedIds.length > 0 && (
-                <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-primary">
-                                {selectedIds.length} members selected
-                            </span>
-                            <Separator orientation="vertical" className="h-4" />
-                            <Button
-                                size="sm"
-                                className="gap-2"
-                                onClick={() => setBulkDialogOpen(true)}
-                            >
-                                <MessageCircle className="h-4 w-4" />
-                                <span className=" md:block hidden "> Bulk Message</span>
-                            </Button>
-                        </div>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setSelectedIds([])}
-                        >
-                            Clear selection
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Members Table (Desktop) */}
-            {loading ? (
-                <div className="space-y-3">
-                    {[...Array(5)].map((_, i) => (
-                        <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                </div>
-            ) : members.length === 0 ? (
-                <EmptyState
-                    icon={Users}
-                    title="No members found"
-                    description={
-                        search || statusFilter || planFilter
-                            ? "Try adjusting your search or filters"
-                            : "Add your first member to get started"
-                    }
-                    actionLabel={
-                        !search && !statusFilter && !planFilter ? "Add Member" : undefined
-                    }
-                    onAction={
-                        !search && !statusFilter && !planFilter
-                            ? () => router.push("/dashboard/members/new")
-                            : undefined
-                    }
-                />
-            ) : (
-                <>
-                    {/* Desktop Table */}
-                    <div className="hidden lg:block">
-                        <Card>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-12">
-                                            <Checkbox
-                                                checked={
-                                                    selectedIds.length === members.length &&
-                                                    members.length > 0
-                                                }
-                                                onCheckedChange={toggleAll}
-                                            />
-                                        </TableHead>
-                                        <TableHead>Member</TableHead>
-                                        <TableHead>Mobile</TableHead>
-                                        <TableHead>Plan</TableHead>
-                                        <TableHead>
-                                            <button
-                                                className="flex items-center gap-1 hover:text-foreground"
-                                                onClick={() => toggleSort("createdAt")}
-                                            >
-                                                Start Date <ArrowUpDown className="h-3 w-3" />
-                                            </button>
-                                        </TableHead>
-                                        <TableHead>
-                                            <button
-                                                className="flex items-center gap-1 hover:text-foreground"
-                                                onClick={() => toggleSort("expiry")}
-                                            >
-                                                End Date <ArrowUpDown className="h-3 w-3" />
-                                            </button>
-                                        </TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Active</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {members.map((member) => (
-                                        <TableRow key={member._id} className={member.isDeleted ? "opacity-50" : ""}>
-                                            <TableCell>
-                                                <Checkbox
-                                                    checked={selectedIds.includes(member._id)}
-                                                    onCheckedChange={() => toggleSelect(member._id)}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar className="h-9 w-9">
-                                                        <AvatarImage src={member.profileImage} />
-                                                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                                            {member.name?.charAt(0)?.toUpperCase()}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <p className="font-medium">{member.name}</p>
-                                                        {member.email && (
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {member.email}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {member.mobile}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">
-                                                    {member.planId?.name || "N/A"}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {formatDate(member.planStartDate)}
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {formatDate(member.planEndDate)}
-                                            </TableCell>
-                                            <TableCell>{getStatusBadge(member.planEndDate)}</TableCell>
-                                            <TableCell>
-                                                <Switch
-                                                    checked={!member.isDeleted}
-                                                    onCheckedChange={() => handleToggleStatus(member._id)}
-                                                />
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8"
-                                                        >
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.push(`/dashboard/members/${member._id}`)
-                                                            }
-                                                        >
-                                                            <Eye className="mr-2 h-4 w-4" /> View
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.push(
-                                                                    `/dashboard/members/${member._id}?edit=true`
-                                                                )
-                                                            }
-                                                        >
-                                                            <Pencil className="mr-2 h-4 w-4" /> Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() => {
-                                                                const link = generateWhatsAppLink(
-                                                                    member.mobile,
-                                                                    "Your membership is expiring soon. Please renew!"
-                                                                )
-                                                                window.open(link, "_blank")
-                                                            }}
-                                                        >
-                                                            <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-destructive"
-                                                            onClick={() => setDeleteId(member._id)}
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </Card>
-                    </div>
-
-                    {/* Mobile Cards */}
-                    <div className="lg:hidden space-y-3">
-                        {members.map((member) => (
-                            <Card key={member._id} className="p-4">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-10 w-10">
-                                            <AvatarImage src={member.profileImage} />
-                                            <AvatarFallback className="bg-primary/10 text-primary">
-                                                {member.name?.charAt(0)?.toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex items-center gap-2">
-                                            <Checkbox
-                                                checked={selectedIds.includes(member._id)}
-                                                onCheckedChange={() => toggleSelect(member._id)}
-                                                className="mt-0.5"
-                                            />
-                                            <div>
-                                                <p className="font-medium">{member.name}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {member.mobile}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {getStatusBadge(member.planEndDate)}
-                                        <Switch
-                                            checked={!member.isDeleted}
-                                            onCheckedChange={() => handleToggleStatus(member._id)}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                                    <div>
-                                        <p className="text-muted-foreground">Plan</p>
-                                        <p className="font-medium">
-                                            {member.planId?.name || "N/A"}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-muted-foreground">Expires</p>
-                                        <p className="font-medium">
-                                            {formatDate(member.planEndDate)}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="flex-1"
-                                        onClick={() =>
-                                            router.push(`/dashboard/members/${member._id}`)
-                                        }
-                                    >
-                                        <Eye className="mr-1.5 h-3.5 w-3.5" /> View
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            const link = generateWhatsAppLink(
-                                                member.mobile,
-                                                "Your membership is expiring soon!"
-                                            )
-                                            window.open(link, "_blank")
-                                        }}
-                                    >
-                                        <MessageCircle className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-destructive"
-                                        onClick={() => setDeleteId(member._id)}
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-
-                    {/* Pagination */}
-                    {pages > 1 && (
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Page {currentPage} of {pages} ({total} members)
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={currentPage <= 1}
-                                    onClick={() => setCurrentPage((p) => p - 1)}
-                                >
-                                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={currentPage >= pages}
-                                    onClick={() => setCurrentPage((p) => p + 1)}
-                                >
-                                    Next <ChevronRight className="h-4 w-4 ml-1" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </>
-            )}
-
-            {/* Bulk Message Dialog */}
-            <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Send Bulk Message</DialogTitle>
-                        <DialogDescription>
-                            Sending to {selectedIds.length} members. This will be sent as an
-                            official notification.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <Tabs
-                        defaultValue="whatsapp"
-                        onValueChange={(v: any) => setBulkType(v)}
-                    >
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
-                            <TabsTrigger value="email">Email</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="email" className="space-y-4 pt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="subject">Subject</Label>
-                                <Input
-                                    id="subject"
-                                    value={bulkSubject}
-                                    onChange={(e) => setBulkSubject(e.target.value)}
-                                    placeholder="Enter email subject"
-                                />
-                            </div>
-                        </TabsContent>
-                        <TabsContent value="whatsapp" className="pt-4" />
-                    </Tabs>
-
-                    <div className="space-y-2 mt-2">
-                        <Label htmlFor="message">Message</Label>
-                        <Textarea
-                            id="message"
-                            value={bulkMessage}
-                            onChange={(e) => setBulkMessage(e.target.value)}
-                            placeholder="Type your message here..."
-                            className="min-h-[120px]"
-                        />
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setBulkDialogOpen(false)}
-                            disabled={sendingBulk}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleBulkSubmit}
-                            disabled={!bulkMessage || sendingBulk}
-                        >
-                            {sendingBulk ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...
-                                </>
-                            ) : (
-                                <>
-                                    Send {bulkType === "email" ? "Emails" : "WhatsApp"}
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Delete Confirm */}
-            <ConfirmDialog
-                open={!!deleteId}
-                onOpenChange={() => setDeleteId(null)}
-                title="Delete Member"
-                description="Are you sure you want to delete this member? They can be restored later."
-                onConfirm={handleDelete}
-                loading={deleting}
-            />
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Members</h1>
+          <p className="text-muted-foreground mt-1">{total} total members</p>
         </div>
-    )
+        <div className="md:flex md:space-y-0 space-y-4 gap-2">
+          <div className=" flex justify-between items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCSVExport}
+              disabled={members.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" /> Export
+            </Button>
+            <ImportMembersDialog plans={plans} onSuccess={fetchMembers} />
+          </div>
+          <Link href="/dashboard/members/new" className=" max-w-70 w-full">
+            <Button className="w-full">
+              <Plus className="mr-2 h-4 w-4" />
+              Import Member
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or mobile..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v === "all" ? "" : v);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="expiring-soon">Expiring Soon</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={planFilter}
+              onValueChange={(v) => {
+                setPlanFilter(v === "all" ? "" : v);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Plan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Plans</SelectItem>
+                {plans.map((plan) => (
+                  <SelectItem key={plan._id} value={plan._id}>
+                    {plan.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bulk Actions */}
+      {selectedIds.length > 0 && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-primary">
+                {selectedIds.length} members selected
+              </span>
+              <Separator orientation="vertical" className="h-4" />
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={() => setBulkDialogOpen(true)}
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span className=" md:block hidden "> Bulk Message</span>
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds([])}
+            >
+              Clear selection
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Members Table (Desktop) */}
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : members.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No members found"
+          description={
+            search || statusFilter || planFilter
+              ? "Try adjusting your search or filters"
+              : "Add your first member to get started"
+          }
+          actionLabel={
+            !search && !statusFilter && !planFilter ? "Add Member" : undefined
+          }
+          onAction={
+            !search && !statusFilter && !planFilter
+              ? () => router.push("/dashboard/members/new")
+              : undefined
+          }
+        />
+      ) : (
+        <>
+          {/* Desktop Table */}
+          <div className="hidden lg:block">
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={
+                          selectedIds.length === members.length &&
+                          members.length > 0
+                        }
+                        onCheckedChange={toggleAll}
+                      />
+                    </TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Mobile</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>
+                      <button
+                        className="flex items-center gap-1 hover:text-foreground"
+                        onClick={() => toggleSort("createdAt")}
+                      >
+                        Start Date <ArrowUpDown className="h-3 w-3" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button
+                        className="flex items-center gap-1 hover:text-foreground"
+                        onClick={() => toggleSort("expiry")}
+                      >
+                        End Date <ArrowUpDown className="h-3 w-3" />
+                      </button>
+                    </TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Active</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {members.map((member) => (
+                    <TableRow
+                      key={member._id}
+                      className={member.isDeleted ? "opacity-50" : ""}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.includes(member._id)}
+                          onCheckedChange={() => toggleSelect(member._id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={member.profileImage} />
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {member.name?.charAt(0)?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{member.name}</p>
+                            {member.email && (
+                              <p className="text-xs text-muted-foreground">
+                                {member.email}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {member.mobile}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {member.planId?.name || "N/A"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(member.planStartDate)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(member.planEndDate)}
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(member.planEndDate)}
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={!member.isDeleted}
+                          onCheckedChange={() => handleToggleStatus(member._id)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                router.push(`/dashboard/members/${member._id}`)
+                              }
+                            >
+                              <Eye className="mr-2 h-4 w-4" /> View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/members/${member._id}?edit=true`,
+                                )
+                              }
+                            >
+                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const link = generateWhatsAppLink(
+                                  member.mobile,
+                                  "Your membership is expiring soon. Please renew!",
+                                );
+                                window.open(link, "_blank");
+                              }}
+                            >
+                              <MessageCircle className="mr-2 h-4 w-4" />{" "}
+                              WhatsApp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => setDeleteId(member._id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="lg:hidden space-y-3">
+            {members.map((member) => (
+              <Card key={member._id} className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={member.profileImage} />
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {member.name?.charAt(0)?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedIds.includes(member._id)}
+                        onCheckedChange={() => toggleSelect(member._id)}
+                        className="mt-0.5"
+                      />
+                      <div>
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {member.mobile}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {getStatusBadge(member.planEndDate)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                  <div>
+                    <p className="text-muted-foreground">Plan</p>
+                    <p className="font-medium">
+                      {member.planId?.name || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Expires</p>
+                    <p className="font-medium">
+                      {formatDate(member.planEndDate)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() =>
+                      router.push(`/dashboard/members/${member._id}`)
+                    }
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const link = generateWhatsAppLink(
+                        member.mobile,
+                        "Your membership is expiring soon!",
+                      );
+                      window.open(link, "_blank");
+                    }}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                  </Button>
+                  <Switch
+                    checked={!member.isDeleted}
+                    onCheckedChange={() => handleToggleStatus(member._id)}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => setDeleteId(member._id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {pages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Page {currentPage} of {pages} ({total} members)
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= pages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Bulk Message Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Bulk Message</DialogTitle>
+            <DialogDescription>
+              Sending to {selectedIds.length} members. This will be sent as an
+              official notification.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs
+            defaultValue="whatsapp"
+            onValueChange={(v: any) => setBulkType(v)}
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+              <TabsTrigger value="email">Email</TabsTrigger>
+            </TabsList>
+            <TabsContent value="email" className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Input
+                  id="subject"
+                  value={bulkSubject}
+                  onChange={(e) => setBulkSubject(e.target.value)}
+                  placeholder="Enter email subject"
+                />
+              </div>
+            </TabsContent>
+            <TabsContent value="whatsapp" className="pt-4" />
+          </Tabs>
+
+          <div className="space-y-2 mt-2">
+            <Label htmlFor="message">Message</Label>
+            <Textarea
+              id="message"
+              value={bulkMessage}
+              onChange={(e) => setBulkMessage(e.target.value)}
+              placeholder="Type your message here..."
+              className="min-h-[120px]"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDialogOpen(false)}
+              disabled={sendingBulk}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkSubmit}
+              disabled={!bulkMessage || sendingBulk}
+            >
+              {sendingBulk ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...
+                </>
+              ) : (
+                <>Send {bulkType === "email" ? "Emails" : "WhatsApp"}</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        title="Delete Member"
+        description="Are you sure you want to delete this member? They can be restored later."
+        onConfirm={handleDelete}
+        loading={deleting}
+      />
+    </div>
+  );
 }
